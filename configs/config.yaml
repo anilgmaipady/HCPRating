@@ -1,0 +1,110 @@
+# RD Rating System Configuration
+
+# Model Configuration
+model:
+  name: "models/mistral-7b-instruct"
+  max_length: 4096
+  temperature: 0.1
+  top_p: 0.9
+  load_in_4bit: false
+  device_map: "auto"
+
+# vLLM Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  tensor_parallel_size: 1
+  max_model_len: 8192
+  gpu_memory_utilization: 0.9
+
+# Scoring Criteria
+scoring:
+  dimensions:
+    empathy:
+      weight: 0.25
+      description: "Ability to understand and respond to patient emotions"
+      criteria:
+        - "Shows genuine concern for patient's feelings"
+        - "Uses empathetic language and tone"
+        - "Acknowledges patient's emotional state"
+    
+    clarity:
+      weight: 0.25
+      description: "Clear and understandable communication"
+      criteria:
+        - "Uses simple, jargon-free language"
+        - "Explains concepts clearly"
+        - "Provides structured information"
+    
+    accuracy:
+      weight: 0.25
+      description: "Correctness of nutritional information and advice"
+      criteria:
+        - "Provides evidence-based recommendations"
+        - "Avoids misinformation"
+        - "References current guidelines"
+    
+    professionalism:
+      weight: 0.25
+      description: "Maintains professional standards and boundaries"
+      criteria:
+        - "Maintains appropriate boundaries"
+        - "Shows respect for patient autonomy"
+        - "Follows ethical guidelines"
+
+# Training Configuration
+training:
+  learning_rate: 2e-4
+  num_epochs: 3
+  batch_size: 2
+  gradient_accumulation_steps: 4
+  warmup_steps: 100
+  save_steps: 500
+  eval_steps: 500
+  logging_steps: 10
+  
+  # LoRA Configuration
+  lora:
+    r: 8
+    lora_alpha: 16
+    lora_dropout: 0.1
+    bias: "none"
+    task_type: "CAUSAL_LM"
+
+# API Configuration
+api:
+  title: "RD Rating API"
+  description: "API for rating Registered Dietitians based on telehealth transcripts"
+  version: "1.0.0"
+  docs_url: "/docs"
+  redoc_url: "/redoc"
+
+# Frontend Configuration
+frontend:
+  title: "RD Rating System"
+  page_icon: "🥗"
+  layout: "wide"
+  theme:
+    primaryColor: "#1f77b4"
+    backgroundColor: "#ffffff"
+    secondaryBackgroundColor: "#f0f2f6"
+    textColor: "#262730"
+
+# Data Processing
+data:
+  max_transcript_length: 4000
+  chunk_size: 1000
+  overlap: 200
+  output_format: "json"
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/rd_rating.log"
+
+# Export Options
+export:
+  formats: ["json", "csv", "excel"]
+  include_metadata: true
+  include_raw_scores: true 
