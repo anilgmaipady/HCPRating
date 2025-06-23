@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI REST API for RD Rating System
+FastAPI REST API for HCP Rating System
 """
 
 import json
@@ -22,7 +22,7 @@ import yaml
 import pandas as pd
 from datetime import datetime
 
-from src.inference.rd_scorer import RDScorer, ScoringResult
+from src.inference.hcp_scorer import HCPScorer, ScoringResult
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -54,25 +54,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize RD Scorer
+# Initialize HCP Scorer
 try:
-    rd_scorer = RDScorer()
-    logger.info("RD Scorer initialized successfully")
+    # Try to use Ollama backend first, then fallback to auto
+    hcp_scorer = HCPScorer(model_backend="ollama")
+    logger.info("HCP Scorer initialized successfully with Ollama backend")
 except Exception as e:
-    logger.error(f"Failed to initialize RD Scorer: {e}")
-    rd_scorer = None
+    logger.warning(f"Failed to initialize with Ollama backend: {e}")
+    try:
+        # Fallback to auto backend selection
+        hcp_scorer = HCPScorer()
+        logger.info("HCP Scorer initialized successfully with auto backend selection")
+    except Exception as e2:
+        logger.error(f"Failed to initialize HCP Scorer: {e2}")
+        hcp_scorer = None
 
 # Pydantic models for API
 class TranscriptRequest(BaseModel):
     transcript: str = Field(..., description="Telehealth session transcript")
-    rd_name: Optional[str] = Field(None, description="Name of the Registered Dietitian")
+    hcp_name: Optional[str] = Field(None, description="Name of the Healthcare Provider")
     session_date: Optional[str] = Field(None, description="Date of the session (YYYY-MM-DD)")
 
 class BatchTranscriptRequest(BaseModel):
     transcripts: List[TranscriptRequest] = Field(..., description="List of transcripts to score")
 
 class ScoringResponse(BaseModel):
-    rd_name: Optional[str]
+    hcp_name: Optional[str]
     session_date: Optional[str]
     scores: Dict[str, Any]
     overall_score: float
@@ -85,13 +92,13 @@ class ScoringResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
-    timestamp: str
+    backend: str
 
 @app.get("/", response_model=Dict[str, str])
 async def root():
     """Root endpoint with API information."""
     return {
-        "message": "RD Rating System API",
+        "message": "HCP Rating System API",
         "version": config['api']['version'],
         "docs": "/docs",
         "health": "/health"
@@ -100,27 +107,32 @@ async def root():
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
+    if hcp_scorer is None:
+        raise HTTPException(status_code=503, detail="HCP Scorer not initialized")
+    
+    backend_info = hcp_scorer.get_backend_info()
+    
     return HealthResponse(
-        status="healthy" if rd_scorer else "unhealthy",
-        model_loaded=rd_scorer is not None,
-        timestamp=datetime.now().isoformat()
+        status="healthy" if backend_info["available"] else "unhealthy",
+        model_loaded=backend_info["available"],
+        backend=backend_info["backend"]
     )
 
 @app.post("/score", response_model=ScoringResponse)
 async def score_transcript(request: TranscriptRequest):
     """Score a single telehealth transcript."""
-    if not rd_scorer:
-        raise HTTPException(status_code=503, detail="RD Scorer not available")
+    if hcp_scorer is None:
+        raise HTTPException(status_code=503, detail="HCP Scorer not available")
     
     try:
-        logger.info(f"Scoring transcript for RD: {request.rd_name or 'Unknown'}")
+        logger.info(f"Scoring transcript for HCP: {request.hcp_name or 'Unknown'}")
         
         # Score the transcript
-        result = rd_scorer.score_transcript(request.transcript, request.rd_name)
+        result = hcp_scorer.score_transcript(request.transcript, request.hcp_name)
         
         # Create response
         response = ScoringResponse(
-            rd_name=request.rd_name,
+            hcp_name=request.hcp_name,
             session_date=request.session_date,
             scores={
                 'empathy': result.empathy,
@@ -145,23 +157,23 @@ async def score_transcript(request: TranscriptRequest):
 @app.post("/score/batch", response_model=List[ScoringResponse])
 async def score_batch_transcripts(request: BatchTranscriptRequest):
     """Score multiple transcripts in batch."""
-    if not rd_scorer:
-        raise HTTPException(status_code=503, detail="RD Scorer not available")
+    if hcp_scorer is None:
+        raise HTTPException(status_code=503, detail="HCP Scorer not available")
     
     try:
         logger.info(f"Scoring {len(request.transcripts)} transcripts in batch")
         
         # Prepare transcripts for batch processing
-        transcripts = [(t.transcript, t.rd_name) for t in request.transcripts]
+        transcripts = [(t.transcript, t.hcp_name) for t in request.transcripts]
         
         # Score transcripts
-        results = rd_scorer.batch_score_transcripts(transcripts)
+        results = hcp_scorer.batch_score_transcripts(transcripts)
         
         # Create responses
         responses = []
         for i, (request_item, result) in enumerate(zip(request.transcripts, results)):
             response = ScoringResponse(
-                rd_name=request_item.rd_name,
+                hcp_name=request_item.hcp_name,
                 session_date=request_item.session_date,
                 scores={
                     'empathy': result.empathy,
@@ -187,8 +199,8 @@ async def score_batch_transcripts(request: BatchTranscriptRequest):
 @app.post("/upload/csv")
 async def upload_csv(file: UploadFile = File(...)):
     """Upload CSV file with transcripts for batch scoring."""
-    if not rd_scorer:
-        raise HTTPException(status_code=503, detail="RD Scorer not available")
+    if hcp_scorer is None:
+        raise HTTPException(status_code=503, detail="HCP Scorer not available")
     
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="File must be a CSV")
@@ -211,7 +223,7 @@ async def upload_csv(file: UploadFile = File(...)):
         for _, row in df.iterrows():
             transcript = TranscriptRequest(
                 transcript=row['transcript'],
-                rd_name=row.get('rd_name'),
+                hcp_name=row.get('hcp_name'),
                 session_date=row.get('session_date')
             )
             transcripts.append(transcript)
@@ -221,10 +233,10 @@ async def upload_csv(file: UploadFile = File(...)):
         results = await score_batch_transcripts(batch_request)
         
         # Generate report
-        rd_names = [t.rd_name for t in transcripts]
-        report = rd_scorer.generate_report(
+        hcp_names = [t.hcp_name for t in transcripts]
+        report = hcp_scorer.generate_report(
             [ScoringResult(**r.dict()) for r in results], 
-            rd_names
+            hcp_names
         )
         
         return {

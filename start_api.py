@@ -1,33 +1,18 @@
 #!/usr/bin/env python3
 """
-HCP Rating System - Main Startup Script
-
-This script provides multiple ways to start the HCP Rating System:
-- Quick start with Ollama (recommended)
-- vLLM deployment
-- Individual service startup
-- Ollama setup and testing
+Start HCP Rating API Server with Ollama Backend
 """
 
-import os
 import sys
+import os
 import subprocess
 import time
 import requests
-import yaml
 from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.append(str(project_root))
-
-def load_config():
-    """Load configuration from config.yaml"""
-    config_path = Path("configs/config.yaml")
-    if config_path.exists():
-        with open(config_path, 'r') as f:
-            return yaml.safe_load(f)
-    return {}
 
 def check_ollama_availability():
     """Check if Ollama is available and running."""
@@ -88,44 +73,10 @@ def test_ollama_integration():
         print(f"❌ Ollama integration test failed: {e}")
         return False
 
-def start_frontend():
-    """Start the Streamlit frontend."""
-    print("🌐 Starting Streamlit frontend...")
-    try:
-        subprocess.run([
-            sys.executable, "-m", "streamlit", "run", "frontend/app.py",
-            "--server.port", "8501",
-            "--server.address", "0.0.0.0"
-        ])
-    except KeyboardInterrupt:
-        print("\n👋 Frontend stopped")
-    except Exception as e:
-        print(f"❌ Failed to start frontend: {e}")
-
-def show_help():
-    """Show help information"""
-    print("HCP Rating System - Startup Script")
-    print("=" * 40)
-    print()
-    print("Available commands:")
-    print()
-    print("  quick          - Quick start with Ollama (recommended)")
-    print("  vllm           - Start vLLM server")
-    print("  api            - Start FastAPI server only")
-    print("  streamlit      - Start Streamlit frontend only")
-    print("  ollama-setup   - Set up Ollama with recommended model")
-    print("  ollama-test    - Test Ollama integration")
-    print("  help           - Show this help message")
-    print()
-    print("Examples:")
-    print("  python start.py quick")
-    print("  python start.py ollama-setup")
-    print("  python start.py vllm")
-
 def main():
     """Main startup function."""
-    print("🚀 HCP Rating System - Startup")
-    print("=" * 50)
+    print("🚀 Starting HCP Rating API Server with Ollama Backend")
+    print("=" * 60)
     
     # Check if Ollama is available
     print("🔍 Checking Ollama availability...")
@@ -157,9 +108,25 @@ def main():
     
     print("✅ Ollama integration test passed")
     
-    # Start the frontend
-    print("🚀 Starting HCP Rating System...")
-    start_frontend()
+    # Start the API server
+    print("🚀 Starting API server...")
+    try:
+        # Import and run the API server
+        from src.api.main import app
+        import uvicorn
+        
+        print("✅ API server started successfully")
+        print("🌐 API will be available at: http://localhost:8000")
+        print("📚 API documentation at: http://localhost:8000/docs")
+        print("🔄 Press Ctrl+C to stop the server")
+        
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+        
+    except KeyboardInterrupt:
+        print("\n👋 API server stopped")
+    except Exception as e:
+        print(f"❌ Failed to start API server: {e}")
+        return False
     
     return True
 

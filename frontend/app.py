@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Streamlit Frontend for RD Rating System
+Streamlit Frontend for HCP Rating System
 """
 
 import streamlit as st
@@ -14,6 +14,7 @@ from datetime import datetime
 import yaml
 from pathlib import Path
 import sys
+import random
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -21,7 +22,7 @@ sys.path.append(str(project_root))
 
 # Page configuration
 st.set_page_config(
-    page_title="RD Rating System",
+    page_title="HCP Rating System",
     page_icon="🥗",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -72,6 +73,13 @@ st.markdown("""
         border-radius: 0.25rem;
         margin: 0.25rem 0;
     }
+    .backend-info {
+        background-color: #e7f3ff;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #007bff;
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -83,28 +91,116 @@ def check_api_health():
     except:
         return False
 
-def score_transcript(transcript, rd_name=None, session_date=None):
-    """Score a single transcript via API."""
+def check_ollama_availability():
+    """Check if Ollama is available."""
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        return response.status_code == 200
+    except:
+        return False
+
+def get_hcp_scorer():
+    """Get HCP Scorer instance for direct use."""
+    try:
+        from src.inference.hcp_scorer import HCPScorer
+        return HCPScorer()
+    except Exception as e:
+        st.error(f"Failed to initialize HCP Scorer: {e}")
+        return None
+
+def score_transcript(transcript, hcp_name=None, session_date=None):
+    """Score a single transcript via API or direct Ollama."""
+    # Try API first
     try:
         payload = {
             "transcript": transcript,
-            "rd_name": rd_name,
+            "hcp_name": hcp_name,
             "session_date": session_date
         }
         response = requests.post(f"{API_BASE_URL}/score", json=payload, timeout=30)
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        st.error(f"Error scoring transcript: {str(e)}")
+        # Fallback to direct Ollama
+        st.warning("API server not available, using Ollama directly...")
+        return score_transcript_direct(transcript, hcp_name, session_date)
+
+def score_transcript_direct(transcript, hcp_name=None, session_date=None):
+    """Score transcript using direct backend."""
+    hcp_scorer = get_hcp_scorer()
+    if not hcp_scorer:
+        return None
+    
+    try:
+        result = hcp_scorer.score_transcript(transcript, hcp_name)
+        return {
+            "hcp_name": hcp_name,
+            "session_date": session_date,
+            "scores": {
+                'empathy': result.empathy,
+                'clarity': result.clarity,
+                'accuracy': result.accuracy,
+                'professionalism': result.professionalism
+            },
+            "overall_score": result.overall_score,
+            "confidence": result.confidence,
+            "reasoning": result.reasoning,
+            "strengths": result.strengths,
+            "areas_for_improvement": result.areas_for_improvement,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        st.error(f"Scoring Error: {e}")
         return None
 
 def score_batch_transcripts(transcripts_data):
-    """Score multiple transcripts via API."""
+    """Score multiple transcripts via API or direct Ollama."""
+    # Try API first
     try:
         payload = {"transcripts": transcripts_data}
         response = requests.post(f"{API_BASE_URL}/score/batch", json=payload, timeout=60)
         response.raise_for_status()
         return response.json()
+    except Exception as e:
+        # Fallback to direct Ollama
+        st.warning("API server not available, using Ollama directly...")
+        return score_batch_transcripts_direct(transcripts_data)
+
+def score_batch_transcripts_direct(transcripts_data):
+    """Score multiple transcripts directly using HCP Scorer."""
+    hcp_scorer = get_hcp_scorer()
+    if not hcp_scorer:
+        return None
+    
+    try:
+        # Prepare transcripts for batch processing
+        transcripts = [(t["transcript"], t.get("hcp_name")) for t in transcripts_data]
+        
+        # Score transcripts
+        results = hcp_scorer.batch_score_transcripts(transcripts)
+        
+        # Convert to API response format
+        responses = []
+        for i, (request_item, result) in enumerate(zip(transcripts_data, results)):
+            response = {
+                "hcp_name": request_item.get("hcp_name"),
+                "session_date": request_item.get("session_date"),
+                "scores": {
+                    'empathy': result.empathy,
+                    'clarity': result.clarity,
+                    'accuracy': result.accuracy,
+                    'professionalism': result.professionalism
+                },
+                "overall_score": result.overall_score,
+                "confidence": result.confidence,
+                "reasoning": result.reasoning,
+                "strengths": result.strengths,
+                "areas_for_improvement": result.areas_for_improvement,
+                "timestamp": datetime.now().isoformat()
+            }
+            responses.append(response)
+        
+        return responses
     except Exception as e:
         st.error(f"Error in batch scoring: {str(e)}")
         return None
@@ -119,7 +215,7 @@ def create_radar_chart(scores):
         r=values,
         theta=categories,
         fill='toself',
-        name='RD Scores',
+        name='HCP Scores',
         line_color='#1f77b4'
     ))
     
@@ -130,7 +226,7 @@ def create_radar_chart(scores):
                 range=[0, 5]
             )),
         showlegend=False,
-        title="RD Performance Radar Chart"
+        title="HCP Performance Radar Chart"
     )
     
     return fig
@@ -140,7 +236,7 @@ def create_bar_chart(scores):
     fig = px.bar(
         x=list(scores.keys()),
         y=list(scores.values()),
-        title="RD Performance Scores",
+        title="HCP Performance Scores",
         labels={'x': 'Dimension', 'y': 'Score'},
         color=list(scores.values()),
         color_continuous_scale='Blues'
@@ -152,14 +248,28 @@ def main():
     """Main application function."""
     
     # Header
-    st.markdown('<h1 class="main-header">🥗 RD Rating System</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🥗 HCP Rating System</h1>', unsafe_allow_html=True)
     
-    # Check API health
+    # Check backend availability
     api_healthy = check_api_health()
+    ollama_available = check_ollama_availability()
     
-    if not api_healthy:
-        st.error("⚠️ API server is not running. Please start the vLLM server first.")
-        st.info("Run: `python src/deployment/start_server.py`")
+    # Show backend status
+    if api_healthy:
+        st.success("✅ API server is running")
+    elif ollama_available:
+        st.info("ℹ️ Using Ollama backend directly (API server not available)")
+    else:
+        st.error("❌ No backend available. Please start Ollama or the API server.")
+        st.info("""
+        **To start Ollama:**
+        1. Install Ollama: Visit https://ollama.ai or run `brew install ollama`
+        2. Start Ollama: `ollama serve`
+        3. Pull model: `ollama pull mistral`
+        
+        **To start API server:**
+        Run: `python src/deployment/start_server.py`
+        """)
         return
     
     # Sidebar
@@ -184,14 +294,37 @@ def show_single_transcript_page():
     """Single transcript scoring page."""
     st.header("📝 Single Transcript Scoring")
     
+    # Sample transcripts for random generation
+    sample_transcripts = [
+        "Patient: I'm really worried about my test results.\nHCP: I can see this is causing you a lot of anxiety. Let me explain what these results mean and what our next steps will be. We're going to work through this together.\nPatient: Thank you, that makes me feel better.\nHCP: You're welcome. Remember, I'm here to support you throughout this process. Do you have any questions about what we discussed?",
+        "Patient: My back has been hurting for a week.\nHCP: Let me examine you. Can you describe the pain?\nPatient: It's sharp and gets worse when I move.\nHCP: I'll order some tests and prescribe pain medication. Come back in a week.",
+        "Patient: I'm feeling very depressed lately.\nHCP: Take these pills. Next patient.\nPatient: But I have questions about side effects.\nHCP: Read the label. Next!",
+        "Patient: I have a headache.\nHCP: How long have you had it? Can you describe the pain?\nPatient: About two days, it's a dull ache.\nHCP: Let me check your blood pressure and ask about any recent changes in your routine.",
+        "Patient: I'm concerned about my medication.\nHCP: I understand your concern. Let's review your current treatment and discuss any side effects you're experiencing.\nPatient: I've been feeling dizzy.\nHCP: That's important to know. Let me adjust your dosage and monitor your response.",
+        "Patient: My symptoms are getting worse.\nHCP: I need to examine you more thoroughly. Let's run some additional tests to understand what's happening.\nPatient: What do you think it could be?\nHCP: I want to rule out several possibilities. The tests will help us determine the best treatment approach.",
+        "Patient: I've been having trouble sleeping.\nHCP: I understand how frustrating that can be. Can you tell me more about your sleep patterns and what might be contributing to this?\nPatient: I'm stressed about work.\nHCP: Stress can definitely impact sleep. Let's discuss some strategies to help you relax and establish a better sleep routine.",
+        "Patient: I think I have an infection.\nHCP: Let me examine the area and ask about your symptoms.\nPatient: It's red and swollen.\nHCP: I can see the inflammation. Let me prescribe an antibiotic and give you instructions for care.",
+        "Patient: I'm worried about my child's fever.\nHCP: I understand your concern. Let me check their temperature and symptoms.\nPatient: It's been high for two days.\nHCP: Let me examine them thoroughly and determine if we need to run any tests.",
+        "Patient: My medication isn't working.\nHCP: I'm sorry to hear that. Let's review your current treatment and see what adjustments we can make.\nPatient: I'm still in pain.\nHCP: Let me explore alternative options and work with you to find a solution that provides relief."
+    ]
+
+    # Session state for transcript text
+    if 'transcript_text' not in st.session_state:
+        st.session_state.transcript_text = ""
+
+    # Button to generate a random transcript
+    if st.button("🎲 Generate Random Transcript"):
+        st.session_state.transcript_text = random.choice(sample_transcripts)
+
     # Input form
     with st.form("transcript_form"):
-        rd_name = st.text_input("Registered Dietitian Name (Optional)")
+        hcp_name = st.text_input("Healthcare Provider Name (Optional)")
         session_date = st.date_input("Session Date (Optional)")
         
         transcript = st.text_area(
             "Telehealth Session Transcript",
             height=300,
+            value=st.session_state.transcript_text,
             placeholder="Paste the telehealth session transcript here..."
         )
         
@@ -201,7 +334,7 @@ def show_single_transcript_page():
         with st.spinner("Analyzing transcript..."):
             result = score_transcript(
                 transcript, 
-                rd_name if rd_name else None,
+                hcp_name if hcp_name else None,
                 session_date.isoformat() if session_date else None
             )
         
@@ -221,14 +354,14 @@ def show_batch_processing_page():
     # Add new transcript
     with st.expander("Add New Transcript", expanded=True):
         with st.form("batch_transcript_form"):
-            rd_name = st.text_input("RD Name")
+            hcp_name = st.text_input("HCP Name")
             session_date = st.date_input("Session Date")
             transcript = st.text_area("Transcript", height=200)
             
             if st.form_submit_button("Add to Batch"):
                 if transcript.strip():
                     st.session_state.transcripts.append({
-                        "rd_name": rd_name,
+                        "hcp_name": hcp_name,
                         "session_date": session_date.isoformat() if session_date else None,
                         "transcript": transcript
                     })
@@ -240,8 +373,8 @@ def show_batch_processing_page():
         st.subheader(f"Current Batch ({len(st.session_state.transcripts)} transcripts)")
         
         for i, transcript_data in enumerate(st.session_state.transcripts):
-            with st.expander(f"Transcript {i+1}: {transcript_data['rd_name'] or 'Unnamed RD'}"):
-                st.write(f"**RD Name:** {transcript_data['rd_name'] or 'Not specified'}")
+            with st.expander(f"Transcript {i+1}: {transcript_data['hcp_name'] or 'Unnamed HCP'}"):
+                st.write(f"**HCP Name:** {transcript_data['hcp_name'] or 'Not specified'}")
                 st.write(f"**Session Date:** {transcript_data['session_date'] or 'Not specified'}")
                 st.write(f"**Transcript:** {transcript_data['transcript'][:200]}...")
                 
@@ -265,7 +398,7 @@ def show_csv_upload_page():
     st.markdown("""
     **CSV Format Requirements:**
     - Required column: `transcript`
-    - Optional columns: `rd_name`, `session_date`
+    - Optional columns: `hcp_name`, `session_date`
     """)
     
     uploaded_file = st.file_uploader(
@@ -297,7 +430,7 @@ def show_csv_upload_page():
                         for _, row in df.iterrows():
                             transcript_data = {
                                 "transcript": row['transcript'],
-                                "rd_name": row.get('rd_name'),
+                                "hcp_name": row.get('hcp_name'),
                                 "session_date": row.get('session_date')
                             }
                             transcripts_data.append(transcript_data)
@@ -413,7 +546,7 @@ def display_scoring_results(result):
             st.download_button(
                 label="Download JSON",
                 data=json.dumps(result, indent=2),
-                file_name=f"rd_score_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                file_name=f"hcp_score_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                 mime="application/json"
             )
     
@@ -424,7 +557,7 @@ def display_scoring_results(result):
             st.download_button(
                 label="Download CSV",
                 data=csv,
-                file_name=f"rd_score_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                file_name=f"hcp_score_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv"
             )
 
@@ -436,7 +569,7 @@ def display_batch_results(results):
     summary_data = []
     for result in results:
         summary_data.append({
-            'RD Name': result['rd_name'] or 'Unknown',
+            'HCP Name': result['hcp_name'] or 'Unknown',
             'Overall Score': result['overall_score'],
             'Empathy': result['scores']['empathy'],
             'Clarity': result['scores']['clarity'],
@@ -531,7 +664,7 @@ def display_summary_report(report):
     if summary.get('top_performers'):
         st.write("**🏆 Top Performers:**")
         for performer in summary['top_performers']:
-            st.write(f"{performer['rank']}. {performer['rd_name']} - Score: {performer['score']:.2f}")
+            st.write(f"{performer['rank']}. {performer['hcp_name']} - Score: {performer['score']:.2f}")
 
 if __name__ == "__main__":
     main() 

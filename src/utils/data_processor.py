@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Data Processing Utilities for RD Rating System
+Data Processing Utilities for HCP Rating System
 """
 
 import re
@@ -35,6 +35,27 @@ class DataProcessor:
         # Normalize quotes
         transcript = transcript.replace('"', '"').replace('"', '"')
         transcript = transcript.replace(''', "'").replace(''', "'")
+        
+        # Normalize speaker labels
+        transcript = re.sub(r'\b(?:RD|Registered Dietitian|Dietitian)\b', 'HCP', transcript, flags=re.IGNORECASE)
+        transcript = re.sub(r'\b(?:Patient|Client|User)\b', 'Patient', transcript, flags=re.IGNORECASE)
+        
+        # Truncate if too long
+        if len(transcript) > self.max_length:
+            # Try to truncate at sentence boundary
+            sentences = re.split(r'[.!?]+', transcript)
+            truncated = ""
+            for sentence in sentences:
+                if len(truncated + sentence) < self.max_length:
+                    truncated += sentence + "."
+                else:
+                    break
+            
+            # If no sentences fit, truncate at word boundary
+            words = transcript.split()
+            truncated = " ".join(words[:self.max_length // 5])  # Approximate word count
+            
+            transcript = truncated + "..."
         
         return transcript
     
@@ -100,23 +121,36 @@ class DataProcessor:
     
     def extract_speakers(self, transcript: str) -> Dict[str, List[str]]:
         """Extract speaker turns from transcript."""
-        speakers = {}
+        speakers = {"HCP": [], "Patient": []}
         
-        # Common patterns for speaker identification
-        patterns = [
-            r'^(\w+):\s*(.*?)(?=\n\w+:|$)',
-            r'^(\w+)\s*:\s*(.*?)(?=\n\w+\s*:|$)',
-            r'^(\w+)\s*-\s*(.*?)(?=\n\w+\s*-|$)'
-        ]
+        # Split by speaker labels
+        lines = transcript.split('\n')
+        current_speaker = None
+        current_text = ""
         
-        for pattern in patterns:
-            matches = re.findall(pattern, transcript, re.MULTILINE | re.DOTALL)
-            if matches:
-                for speaker, text in matches:
-                    if speaker not in speakers:
-                        speakers[speaker] = []
-                    speakers[speaker].append(text.strip())
-                break
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Check for speaker labels
+            if re.match(r'^(HCP|Patient):', line, re.IGNORECASE):
+                # Save previous speaker's text
+                if current_speaker and current_text:
+                    speakers[current_speaker].append(current_text.strip())
+                
+                # Start new speaker
+                speaker_match = re.match(r'^(HCP|Patient):', line, re.IGNORECASE)
+                current_speaker = speaker_match.group(1).title()
+                current_text = line[len(speaker_match.group(0)):].strip()
+            else:
+                # Continue current speaker's text
+                if current_speaker:
+                    current_text += " " + line
+        
+        # Add final speaker's text
+        if current_speaker and current_text:
+            speakers[current_speaker].append(current_text.strip())
         
         return speakers
     
@@ -141,7 +175,7 @@ class DataProcessor:
                 errors.append(f"Found {empty_transcripts} empty transcripts")
         
         # Check optional columns
-        optional_columns = ['rd_name', 'session_date']
+        optional_columns = ['hcp_name', 'session_date']
         for col in optional_columns:
             if col in df.columns:
                 if col == 'session_date':
@@ -171,7 +205,7 @@ class DataProcessor:
                 
                 processed_row = {
                     'transcript': transcript,
-                    'rd_name': row.get('rd_name'),
+                    'hcp_name': row.get('hcp_name'),
                     'session_date': row.get('session_date'),
                     'original_index': idx
                 }
@@ -189,18 +223,18 @@ class DataProcessor:
         """Create a sample CSV file for testing."""
         sample_data = [
             {
-                'transcript': 'RD: Hello, how are you feeling today? Patient: I\'m really struggling with my diet. RD: I understand this can be challenging. Let\'s work together to find solutions that work for you.',
-                'rd_name': 'Dr. Sarah Johnson',
+                'transcript': 'HCP: Hello, how are you feeling today? Patient: I\'m really struggling with my diet. HCP: I understand this can be challenging. Let\'s work together to find solutions that work for you.',
+                'hcp_name': 'Dr. Sarah Johnson',
                 'session_date': '2024-01-15'
             },
             {
-                'transcript': 'RD: Good morning! I see from your records that you\'ve been working on managing your diabetes. How has that been going? Patient: It\'s been tough. I love sweets and it\'s hard to give them up.',
-                'rd_name': 'Dr. Michael Chen',
+                'transcript': 'HCP: Good morning! I see from your records that you\'ve been working on managing your diabetes. How has that been going? Patient: It\'s been tough. I love sweets and it\'s hard to give them up.',
+                'hcp_name': 'Dr. Michael Chen',
                 'session_date': '2024-01-16'
             },
             {
-                'transcript': 'RD: You need to eat more vegetables. Patient: I don\'t like vegetables. RD: You have to eat them anyway. It\'s good for you.',
-                'rd_name': 'Dr. Emily Rodriguez',
+                'transcript': 'HCP: You need to eat more vegetables. Patient: I don\'t like vegetables. HCP: You have to eat them anyway. It\'s good for you.',
+                'hcp_name': 'Dr. Emily Rodriguez',
                 'session_date': '2024-01-17'
             }
         ]

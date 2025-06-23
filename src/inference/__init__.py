@@ -1,7 +1,7 @@
 """
-RD Rating System - Inference Package
+HCP Rating System - Inference Package
 """
 
-from .rd_scorer import RDScorer, ScoringResult
+from .hcp_scorer import HCPScorer, ScoringResult
 
-__all__ = ["RDScorer", "ScoringResult"] 
+__all__ = ["HCPScorer", "ScoringResult"] 

@@ -1,13 +1,23 @@
-# RD Rating System Configuration
+# HCP Rating System Configuration
 
 # Model Configuration
 model:
-  name: "models/mistral-7b-instruct"
+  name: "mistral-7b-instruct"
   max_length: 4096
   temperature: 0.1
   top_p: 0.9
   load_in_4bit: false
   device_map: "auto"
+
+# Ollama Configuration
+ollama:
+  base_url: "http://localhost:11434"
+  model_name: "mistral"
+  temperature: 0.1
+  top_p: 0.9
+  top_k: 40
+  max_tokens: 2048
+  timeout: 120
 
 # vLLM Server Configuration
 server:
@@ -22,35 +32,39 @@ scoring:
   dimensions:
     empathy:
       weight: 0.25
-      description: "Ability to understand and respond to patient emotions"
+      description: "Shows understanding and compassion"
       criteria:
-        - "Shows genuine concern for patient's feelings"
-        - "Uses empathetic language and tone"
-        - "Acknowledges patient's emotional state"
+        - "Demonstrates emotional awareness"
+        - "Shows genuine concern for patient"
+        - "Uses empathetic language"
+        - "Validates patient feelings"
     
     clarity:
       weight: 0.25
-      description: "Clear and understandable communication"
+      description: "Communicates clearly and effectively"
       criteria:
-        - "Uses simple, jargon-free language"
+        - "Uses simple, understandable language"
         - "Explains concepts clearly"
         - "Provides structured information"
+        - "Confirms patient understanding"
     
     accuracy:
       weight: 0.25
-      description: "Correctness of nutritional information and advice"
+      description: "Provides accurate information and advice"
       criteria:
-        - "Provides evidence-based recommendations"
-        - "Avoids misinformation"
-        - "References current guidelines"
+        - "Gives evidence-based recommendations"
+        - "Corrects misconceptions appropriately"
+        - "Provides accurate medical information"
+        - "Refers to reliable sources"
     
     professionalism:
       weight: 0.25
       description: "Maintains professional standards and boundaries"
       criteria:
         - "Maintains appropriate boundaries"
-        - "Shows respect for patient autonomy"
-        - "Follows ethical guidelines"
+        - "Shows respect and courtesy"
+        - "Follows professional protocols"
+        - "Demonstrates ethical behavior"
 
 # Training Configuration
 training:
@@ -73,15 +87,19 @@ training:
 
 # API Configuration
 api:
-  title: "RD Rating API"
-  description: "API for rating Registered Dietitians based on telehealth transcripts"
+  title: "HCP Rating API"
+  description: "API for rating Healthcare Providers based on telehealth transcripts"
   version: "1.0.0"
   docs_url: "/docs"
   redoc_url: "/redoc"
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["*"]
 
 # Frontend Configuration
 frontend:
-  title: "RD Rating System"
+  title: "HCP Rating System"
+  description: "AI-powered Healthcare Provider evaluation system"
   page_icon: "🥗"
   layout: "wide"
   theme:
@@ -96,12 +114,14 @@ data:
   chunk_size: 1000
   overlap: 200
   output_format: "json"
+  supported_formats: ["txt", "csv", "json"]
+  batch_size: 10
 
 # Logging
 logging:
   level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: "logs/rd_rating.log"
+  file: "logs/hcp_rating.log"
 
 # Export Options
 export:

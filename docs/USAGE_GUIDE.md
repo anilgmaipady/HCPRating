@@ -1,392 +1,707 @@
-# RD Rating System - Usage Guide
+# HCP Rating System - Usage Guide
 
-## 🚀 Quick Start
+## Introduction
 
-### 1. Installation
+Welcome to the HCP Rating System! This comprehensive guide will help you get up and running with the HCP Rating System quickly and efficiently.
 
-```bash
-# Clone the repository
-git clone <repository-url>
-cd RD-RANK
+## Quick Start
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+### Prerequisites
+- Python 3.8 or higher
+- Ollama (for local model inference)
+- 8GB+ RAM (16GB+ recommended)
 
-# Install dependencies
-pip install -r requirements.txt
-```
+### Installation Steps
 
-### 2. Start the System
+1. **Clone the Repository**
+   ```bash
+   git clone <repository-url>
+   cd RD-RANK
+   ```
 
-```bash
-# Start all services (recommended)
-python start.py all
+2. **Create Virtual Environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On macOS/Linux
+   # or
+   venv\Scripts\activate     # On Windows
+   ```
 
-# Or start services individually:
-python start.py vllm    # Start vLLM server
-python start.py api     # Start API server  
-python start.py streamlit  # Start web interface
-```
+3. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### 3. Access the System
+4. **Install Ollama**
+   
+   **macOS:**
+   ```bash
+   # Option 1: Homebrew
+   brew install ollama
+   
+   # Option 2: Manual download
+   # Visit https://ollama.ai and download the macOS installer
+   # Run the downloaded .dmg file and follow the installation wizard
+   ```
+   
+   **Linux:**
+   ```bash
+   curl -fsSL https://ollama.ai/install.sh | sh
+   ```
+   
+   **Windows:**
+   ```bash
+   # Visit https://ollama.ai and download the Windows installer
+   # Run the installer and follow the wizard
+   ```
 
-- **Web Interface**: http://localhost:8501
-- **API Documentation**: http://localhost:8001/docs
-- **API Health Check**: http://localhost:8001/health
+5. **Start Ollama and Download Model**
+   ```bash
+   # Start Ollama service
+   ollama serve
+   
+   # In a new terminal, download the model
+   ollama pull mistral
+   ```
 
-## 📊 Using the Web Interface
+6. **Start the System**
+   ```bash
+   python run.py
+   ```
+
+The web interface will open automatically at `http://localhost:8501`
+
+## Using the Web Interface
 
 ### Single Transcript Scoring
 
-1. Navigate to "Single Transcript" in the sidebar
-2. Enter the RD name (optional)
-3. Select the session date (optional)
-4. Paste the telehealth session transcript
-5. Click "Score Transcript"
-6. View detailed results with charts and analysis
+1. **Access the Interface**
+   - Open your browser and go to `http://localhost:8501`
+   - You'll see the main HCP Rating System interface
+
+2. **Use the "🎲 Generate Random Transcript" button**
+   - Click this button to instantly fill the transcript area with a realistic example for quick testing or demo.
+   - You can also paste or type your own transcript.
+
+3. **Enter HCP Information**:
+   - HCP Name (optional)
+   - Session Date (optional)
+
+4. **Score Transcript**:
+   - Click "Score Transcript"
+   - Wait for the analysis to complete
+   - View detailed results with scores, reasoning, and recommendations
 
 ### Batch Processing
 
-1. Navigate to "Batch Processing" in the sidebar
-2. Add multiple transcripts using the form
-3. Click "Process Batch" to score all transcripts
-4. View summary results and export data
+1. **Navigate to Batch Processing**:
+   - Click on "Batch Processing" in the sidebar
+
+2. **Add Transcripts**:
+   - Enter multiple transcripts one by one
+   - Add HCP names and session dates for each
+   - Or use the CSV upload feature
+
+3. **Process Batch**:
+   - Click "Process Batch" to score all transcripts
+   - View summary statistics and individual results
+   - Export results in JSON or CSV format
 
 ### CSV Upload
 
-1. Navigate to "Upload CSV" in the sidebar
-2. Upload a CSV file with the following columns:
-   - `transcript` (required): The session transcript
-   - `rd_name` (optional): Name of the RD
-   - `session_date` (optional): Date of the session
-3. Click "Process CSV" to score all transcripts
-4. Download results in various formats
+1. **Prepare CSV File**:
+   - Create a CSV file with the following columns:
+   ```
+   transcript,hcp_name,session_date
+   "HCP: Hello, how are you feeling today? Patient: I'm struggling...","Dr. Smith","2024-01-15"
+   "HCP: Let's discuss your nutrition goals...","Dr. Johnson","2024-01-16"
+   ```
 
-## 🔧 Using the API
+2. **Upload and Process**:
+   - Go to "CSV Upload" in the sidebar
+   - Upload your CSV file
+   - Click "Process CSV" to analyze all transcripts
+   - Download results in your preferred format
 
-### Single Transcript Scoring
+## Using the Command Line Interface
 
-```python
-import requests
+### Basic Commands
 
-url = "http://localhost:8001/score"
-data = {
-    "transcript": "RD: Hello, how are you feeling today? Patient: I'm struggling...",
-    "rd_name": "Dr. Smith",
-    "session_date": "2024-01-15"
+1. **Score a Single Transcript**:
+   ```bash
+   python src/cli.py score "HCP: Hello, how are you feeling today? Patient: I'm struggling..."
+   ```
+
+2. **Score with HCP Name**:
+   ```bash
+   python src/cli.py score "HCP: Hello..." --hcp-name "Dr. Smith" --session-date "2024-01-15"
+   ```
+
+3. **Use Specific Backend**:
+   ```bash
+   python src/cli.py score "HCP: Hello..." --backend ollama
+   ```
+
+4. **Score from File**:
+   ```bash
+   python src/cli.py file transcript.txt --hcp-name "Dr. Smith"
+   ```
+
+5. **Process CSV Batch**:
+   ```bash
+   python src/cli.py csv data/transcripts.csv
+   ```
+
+6. **Test Backend**:
+   ```bash
+   python src/cli.py test --backend ollama
+   ```
+
+7. **Interactive Mode**:
+   ```bash
+   python src/cli.py interactive
+   ```
+
+### Interactive Mode Commands
+
+When in interactive mode, you can use these commands:
+
+- `score` - Score a single transcript
+- `file` - Score transcript from file
+- `csv` - Process CSV batch file
+- `test` - Test backend
+- `help` - Show available commands
+- `quit` - Exit interactive mode
+
+## Using the API
+
+### Starting the API Server
+
+1. **Start API Server**:
+   ```bash
+   python start_api.py
+   ```
+
+2. **Access API Documentation**:
+   - Open `http://localhost:8000/docs` for interactive API docs
+   - Open `http://localhost:8000/redoc` for ReDoc documentation
+
+### API Endpoints
+
+#### 1. Score Single Transcript
+
+**Endpoint**: `POST /score`
+
+**Request**:
+```json
+{
+  "transcript": "HCP: Hello, how are you feeling today? Patient: I'm struggling...",
+  "hcp_name": "Dr. Smith"
 }
-
-response = requests.post(url, json=data)
-result = response.json()
-
-print(f"Overall Score: {result['overall_score']}")
-print(f"Empathy: {result['scores']['empathy']}")
-print(f"Reasoning: {result['reasoning']}")
 ```
 
-### Batch Scoring
+**Response**:
+```json
+{
+  "hcp_name": "Dr. Smith",
+  "empathy": 4,
+  "clarity": 5,
+  "accuracy": 4,
+  "professionalism": 4,
+  "overall_score": 4.25,
+  "confidence": 0.85,
+  "reasoning": "The HCP demonstrates good empathy and clear communication...",
+  "strengths": ["Clear communication", "Professional demeanor"],
+  "areas_for_improvement": ["Could ask more follow-up questions"]
+}
+```
 
-```python
-import requests
+#### 2. Batch Processing
 
-url = "http://localhost:8001/score/batch"
-data = {
+**Endpoint**: `POST /batch`
+
+**Request**:
+```json
+{
+  "transcripts": [
+    {"transcript": "Transcript 1...", "hcp_name": "Dr. Smith"},
+    {"transcript": "Transcript 2...", "hcp_name": "Dr. Johnson"}
+  ]
+}
+```
+
+#### 3. Upload CSV
+
+**Endpoint**: `POST /upload-csv`
+
+**Request**: Multipart form data with CSV file
+
+#### 4. Health Check
+
+**Endpoint**: `GET /health`
+
+**Response**:
+```json
+{
+  "status": "healthy",
+  "model_loaded": true,
+  "backend": "ollama"
+}
+```
+
+### API Usage Examples
+
+#### Using curl
+
+```bash
+# Score single transcript
+curl -X POST "http://localhost:8000/score" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transcript": "HCP: Hello, how are you feeling today? Patient: I'm struggling...",
+    "hcp_name": "Dr. Smith"
+  }'
+
+# Batch processing
+curl -X POST "http://localhost:8000/batch" \
+  -H "Content-Type: application/json" \
+  -d '{
     "transcripts": [
-        {
-            "transcript": "Transcript 1...",
-            "rd_name": "Dr. Smith"
-        },
-        {
-            "transcript": "Transcript 2...",
-            "rd_name": "Dr. Johnson"
-        }
+      {"transcript": "Transcript 1...", "hcp_name": "Dr. Smith"},
+      {"transcript": "Transcript 2...", "hcp_name": "Dr. Johnson"}
     ]
-}
+  }'
 
-response = requests.post(url, json=data)
-results = response.json()
-
-for result in results:
-    print(f"{result['rd_name']}: {result['overall_score']}")
+# Upload CSV
+curl -X POST "http://localhost:8000/upload-csv" \
+  -F "file=@transcripts.csv"
 ```
 
-### CSV Upload
+#### Using Python requests
 
 ```python
 import requests
 
-url = "http://localhost:8001/upload/csv"
-files = {"file": open("transcripts.csv", "rb")}
-
-response = requests.post(url, files=files)
+# Score single transcript
+response = requests.post(
+    "http://localhost:8000/score",
+    json={
+        "transcript": "HCP: Hello, how are you feeling today? Patient: I'm struggling...",
+        "hcp_name": "Dr. Smith"
+    }
+)
 result = response.json()
+print(f"Overall Score: {result['overall_score']}")
 
-print(f"Processed {len(result['results'])} transcripts")
+# Batch processing
+response = requests.post(
+    "http://localhost:8000/batch",
+    json={
+        "transcripts": [
+            {"transcript": "Transcript 1...", "hcp_name": "Dr. Smith"},
+            {"transcript": "Transcript 2...", "hcp_name": "Dr. Johnson"}
+        ]
+    }
+)
+results = response.json()
+print(f"Processed {len(results['results'])} transcripts")
 ```
 
-## 💻 Command Line Interface
+## Understanding Scoring Results
 
-### Single Transcript
+### Scoring Dimensions
 
-```bash
-# Score a transcript directly
-python src/cli.py score "RD: Hello, how are you feeling today? Patient: I'm struggling..."
+The system evaluates HCPs across four key dimensions:
 
-# Score with RD name
-python src/cli.py score "Transcript text..." --rd-name "Dr. Smith"
+1. **Empathy (25%)**
+   - **Description**: Shows understanding and compassion
+   - **Criteria**:
+     - Demonstrates emotional awareness
+     - Shows genuine concern for patient
+     - Uses empathetic language
+     - Validates patient feelings
 
-# Score from file
-python src/cli.py file transcript.txt --rd-name "Dr. Smith"
-```
+2. **Clarity (25%)**
+   - **Description**: Communicates clearly and effectively
+   - **Criteria**:
+     - Uses simple, understandable language
+     - Explains concepts clearly
+     - Provides structured information
+     - Confirms patient understanding
 
-### Batch Processing
+3. **Accuracy (25%)**
+   - **Description**: Provides accurate information and advice
+   - **Criteria**:
+     - Gives evidence-based recommendations
+     - Corrects misconceptions appropriately
+     - Provides accurate medical information
+     - Refers to reliable sources
 
-```bash
-# Process CSV file
-python src/cli.py csv data/transcripts.csv
-```
-
-### Interactive Mode
-
-```bash
-# Start interactive CLI
-python src/cli.py interactive
-
-# Available commands:
-# score <transcript> - Score a transcript
-# file <path> - Score from file
-# csv <path> - Process CSV batch
-# quit - Exit
-# help - Show help
-```
-
-## 🎯 Scoring Criteria
-
-The system evaluates RDs across four dimensions:
-
-### Empathy (25% weight)
-- Shows genuine concern for patient's feelings
-- Uses empathetic language and tone
-- Acknowledges patient's emotional state
-
-### Clarity (25% weight)
-- Uses simple, jargon-free language
-- Explains concepts clearly
-- Provides structured information
-
-### Accuracy (25% weight)
-- Provides evidence-based recommendations
-- Avoids misinformation
-- References current guidelines
-
-### Professionalism (25% weight)
-- Maintains appropriate boundaries
-- Shows respect for patient autonomy
-- Follows ethical guidelines
+4. **Professionalism (25%)**
+   - **Description**: Maintains professional standards and boundaries
+   - **Criteria**:
+     - Maintains appropriate boundaries
+     - Shows respect and courtesy
+     - Follows professional protocols
+     - Demonstrates ethical behavior
 
 ### Scoring Scale
+
 - **1: Poor** - Significant issues, needs immediate improvement
 - **2: Below Average** - Several areas need improvement
 - **3: Average** - Meets basic standards, some room for improvement
 - **4: Good** - Above average performance, minor areas for improvement
 - **5: Excellent** - Outstanding performance, exemplary standards
 
-## 🔄 Fine-tuning the Model
+### Result Components
 
-### Prepare Training Data
+Each scoring result includes:
 
-Create a JSONL file with the following format:
+- **Dimension Scores**: Individual scores for each dimension (1-5)
+- **Overall Score**: Weighted average of all dimensions
+- **Confidence**: Model's confidence in the scoring (0-1)
+- **Reasoning**: Detailed explanation of the scores
+- **Strengths**: Identified positive aspects
+- **Areas for Improvement**: Specific suggestions for enhancement
 
+## Data Formats
+
+### CSV Format
+
+**Required columns**:
+- `transcript` - The telehealth session transcript
+
+**Optional columns**:
+- `hcp_name` - Healthcare Provider name
+- `session_date` - Date of the session (YYYY-MM-DD format)
+
+**Example**:
+```csv
+transcript,hcp_name,session_date
+"HCP: Hello, how are you feeling today? Patient: I'm struggling...","Dr. Smith","2024-01-15"
+"HCP: Let's discuss your nutrition goals...","Dr. Johnson","2024-01-16"
+```
+
+### JSON Format
+
+**Single transcript**:
 ```json
 {
-  "transcript": "RD: Hello, how are you feeling today? Patient: I'm struggling...",
-  "empathy": 4,
-  "clarity": 3,
-  "accuracy": 5,
-  "professionalism": 4,
-  "reasoning": "Good empathy shown through validation...",
-  "strengths": ["Shows empathy", "Professional tone"],
-  "areas_for_improvement": ["Could ask more specific questions"]
+  "transcript": "HCP: Hello, how are you feeling today? Patient: I'm struggling...",
+  "hcp_name": "Dr. Smith",
+  "session_date": "2024-01-15"
 }
 ```
 
-### Run Fine-tuning
+**Batch transcripts**:
+```json
+{
+  "transcripts": [
+    {"transcript": "Transcript 1...", "hcp_name": "Dr. Smith"},
+    {"transcript": "Transcript 2...", "hcp_name": "Dr. Johnson"}
+  ]
+}
+```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file based on `env.example`:
 
 ```bash
-# Create sample training data
-python src/training/fine_tune.py --create_sample
+# Copy environment template
+cp env.example .env
 
-# Fine-tune with custom data
-python src/training/fine_tune.py --data_path data/training_data.jsonl --output_dir models/custom_model
+# Edit configuration
+nano .env
 ```
 
-### Use Fine-tuned Model
+**Key configuration options**:
+```bash
+# Model configuration
+MODEL_BACKEND=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL_NAME=mistral
 
-Update the configuration in `configs/config.yaml`:
+# API configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# Frontend configuration
+FRONTEND_PORT=8501
+FRONTEND_HOST=0.0.0.0
+
+# Logging configuration
+LOG_LEVEL=INFO
+LOG_FILE=logs/hcp_rating.log
+```
+
+### Configuration File
+
+Edit `configs/config.yaml` for advanced configuration:
 
 ```yaml
+# Model configuration
 model:
-  name: "models/custom_model"  # Path to your fine-tuned model
-```
-
-## 📁 File Formats
-
-### Input CSV Format
-
-```csv
-transcript,rd_name,session_date
-"RD: Hello, how are you feeling today? Patient: I'm struggling...",Dr. Smith,2024-01-15
-"RD: Good morning! I see from your records...",Dr. Johnson,2024-01-16
-```
-
-### Output JSON Format
-
-```json
-{
-  "rd_name": "Dr. Smith",
-  "session_date": "2024-01-15",
-  "scores": {
-    "empathy": 4,
-    "clarity": 3,
-    "accuracy": 5,
-    "professionalism": 4
-  },
-  "overall_score": 4.0,
-  "confidence": 0.85,
-  "reasoning": "The RD shows good empathy...",
-  "strengths": ["Shows empathy", "Professional tone"],
-  "areas_for_improvement": ["Could be clearer"],
-  "timestamp": "2024-01-15T10:30:00"
-}
-```
-
-## ⚙️ Configuration
-
-Edit `configs/config.yaml` to customize:
-
-### Model Settings
-```yaml
-model:
-  name: "mistralai/Mistral-7B-Instruct-v0.1"
+  name: "mistral-7b-instruct"
   temperature: 0.1
   max_length: 4096
-```
 
-### Scoring Weights
-```yaml
+# Ollama configuration
+ollama:
+  base_url: "http://localhost:11434"
+  model_name: "mistral"
+  temperature: 0.1
+  max_tokens: 2048
+
+# Scoring configuration
 scoring:
   dimensions:
     empathy:
       weight: 0.25
+      description: "Shows understanding and compassion"
     clarity:
       weight: 0.25
+      description: "Communicates clearly and effectively"
     accuracy:
       weight: 0.25
+      description: "Provides accurate information and advice"
     professionalism:
       weight: 0.25
+      description: "Maintains professional standards"
 ```
 
-### Server Settings
-```yaml
-server:
-  host: "0.0.0.0"
-  port: 8000
-  tensor_parallel_size: 1
-```
-
-## 🧪 Testing
-
-### Run Unit Tests
-
-```bash
-# Run all tests
-python start.py test
-
-# Or run directly
-python -m pytest tests/ -v
-```
-
-### Test API Endpoints
-
-```bash
-# Test health endpoint
-curl http://localhost:8001/health
-
-# Test scoring endpoint
-curl -X POST http://localhost:8001/score \
-  -H "Content-Type: application/json" \
-  -d '{"transcript": "RD: Hello, how are you feeling today?"}'
-```
-
-## 📈 Performance Optimization
-
-### For Large Batches
-
-1. **Increase batch size** in configuration
-2. **Use GPU acceleration** if available
-3. **Process in chunks** for very large datasets
-
-### Memory Management
-
-1. **Reduce max_length** for shorter transcripts
-2. **Use 4-bit quantization** (enabled by default)
-3. **Adjust tensor_parallel_size** based on GPU count
-
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-1. **vLLM server not starting**
-   - Check GPU availability
-   - Verify model download
-   - Check port availability
+1. **Ollama Not Running**
+   ```bash
+   # Start Ollama service
+   ollama serve
+   
+   # Check if running
+   curl http://localhost:11434/api/tags
+   ```
 
-2. **API connection errors**
-   - Ensure vLLM server is running
-   - Check API server status
-   - Verify port configurations
+2. **Model Not Available**
+   ```bash
+   # Download model
+   ollama pull mistral
+   
+   # List available models
+   ollama list
+   ```
 
-3. **Memory errors**
-   - Reduce batch size
-   - Enable 4-bit quantization
-   - Use smaller model variant
+3. **Port Already in Use**
+   ```bash
+   # Check what's using the port
+   lsof -i :8501
+   lsof -i :8000
+   
+   # Kill process or use different port
+   ```
 
-### Logs
+4. **Memory Issues**
+   ```bash
+   # Check available memory
+   free -h
+   
+   # Close other applications
+   # Consider using smaller model
+   ```
 
-Check logs in the `logs/` directory:
-- `rd_rating.log` - Application logs
-- `training.log` - Training logs
+### Performance Optimization
 
-### Health Checks
+1. **Use GPU Acceleration** (if available):
+   ```bash
+   # Install CUDA version of PyTorch
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+   ```
 
-```bash
-# Check API health
-curl http://localhost:8001/health
+2. **Optimize Batch Size**:
+   - Reduce batch size for large datasets
+   - Process in smaller chunks
 
-# Check vLLM status
-curl http://localhost:8000/v1/models
-```
+3. **Use Efficient Backend**:
+   - Ollama for local processing
+   - vLLM for high-performance inference
 
-## 📞 Support
+### Logging and Debugging
 
-For issues and questions:
-1. Check the troubleshooting section
-2. Review the configuration options
-3. Run the test suite
-4. Check the logs for error messages
+1. **Enable Debug Logging**:
+   ```bash
+   # Set log level
+   export LOG_LEVEL=DEBUG
+   
+   # Check logs
+   tail -f logs/hcp_rating.log
+   ```
 
-## 🔄 Updates
+2. **Test Backend**:
+   ```bash
+   # Test Ollama integration
+   python test_ollama.py
+   
+   # Test quick scoring
+   python test_quick_scoring.py
+   ```
 
-To update the system:
+## Best Practices
 
-```bash
-# Pull latest changes
-git pull
+### Transcript Preparation
 
-# Update dependencies
-pip install -r requirements.txt --upgrade
+1. **Format Consistency**:
+   - Use clear speaker labels (HCP:, Patient:)
+   - Include complete conversation context
+   - Maintain chronological order
 
-# Restart services
-python start.py all
-``` 
+2. **Content Quality**:
+   - Ensure transcripts are complete and accurate
+   - Include relevant medical context
+   - Avoid heavily edited or summarized content
+
+3. **Privacy Considerations**:
+   - Remove personally identifiable information
+   - Use anonymized data for testing
+   - Follow HIPAA guidelines
+
+### Scoring Interpretation
+
+1. **Context Matters**:
+   - Consider the specific medical context
+   - Account for patient complexity
+   - Factor in session duration
+
+2. **Use Multiple Samples**:
+   - Score multiple sessions per HCP
+   - Look for consistent patterns
+   - Consider trend analysis
+
+3. **Combine with Other Metrics**:
+   - Patient satisfaction scores
+   - Clinical outcomes
+   - Peer reviews
+
+### System Maintenance
+
+1. **Regular Updates**:
+   ```bash
+   # Update dependencies
+   pip install -r requirements.txt --upgrade
+   
+   # Update Ollama models
+   ollama pull mistral
+   ```
+
+2. **Backup Configuration**:
+   ```bash
+   # Backup config files
+   cp configs/config.yaml configs/config.yaml.backup
+   cp .env .env.backup
+   ```
+
+3. **Monitor Performance**:
+   - Check system resources
+   - Monitor API response times
+   - Review error logs
+
+## Advanced Features
+
+### Custom Model Integration
+
+1. **Use Custom Ollama Model**:
+   ```bash
+   # Create custom model
+   ollama create my-model -f Modelfile
+   
+   # Update configuration
+   # Edit configs/config.yaml
+   ollama:
+     model_name: "my-model"
+   ```
+
+2. **Fine-tuned Models**:
+   - Train custom models on domain-specific data
+   - Use LoRA for parameter-efficient fine-tuning
+   - Deploy custom models via Ollama
+
+### Batch Processing Optimization
+
+1. **Parallel Processing**:
+   ```python
+   # Use concurrent processing for large batches
+   from concurrent.futures import ThreadPoolExecutor
+   
+   def process_batch_parallel(transcripts, max_workers=4):
+       with ThreadPoolExecutor(max_workers=max_workers) as executor:
+           results = list(executor.map(score_transcript, transcripts))
+       return results
+   ```
+
+2. **Memory Management**:
+   ```python
+   # Process in chunks to manage memory
+   def process_large_batch(transcripts, chunk_size=100):
+       results = []
+       for i in range(0, len(transcripts), chunk_size):
+           chunk = transcripts[i:i+chunk_size]
+           chunk_results = process_batch(chunk)
+           results.extend(chunk_results)
+       return results
+   ```
+
+### Integration with External Systems
+
+1. **API Integration**:
+   ```python
+   # Integrate with existing systems
+   import requests
+   
+   def score_transcript_api(transcript, hcp_name):
+       response = requests.post(
+           "http://localhost:8000/score",
+           json={"transcript": transcript, "hcp_name": hcp_name}
+       )
+       return response.json()
+   ```
+
+2. **Database Integration**:
+   ```python
+   # Store results in database
+   import sqlite3
+   
+   def store_result(result):
+       conn = sqlite3.connect('hcp_rating.db')
+       cursor = conn.cursor()
+       cursor.execute("""
+           INSERT INTO scoring_results 
+           (hcp_name, overall_score, empathy, clarity, accuracy, professionalism)
+           VALUES (?, ?, ?, ?, ?, ?)
+       """, (result['hcp_name'], result['overall_score'], 
+             result['empathy'], result['clarity'], 
+             result['accuracy'], result['professionalism']))
+       conn.commit()
+       conn.close()
+   ```
+
+## Support and Resources
+
+### Documentation
+- **Architecture**: `docs/ARCHITECTURE.md`
+- **Technical Design**: `docs/TECHNICAL_DESIGN.md`
+- **Project Summary**: `docs/PROJECT_SUMMARY.md`
+
+### Community Resources
+- **GitHub Issues**: Report bugs and request features
+- **Discussions**: Community support and discussions
+- **Wiki**: Additional documentation and tutorials
+
+### Getting Help
+1. **Check Documentation**: Review relevant documentation files
+2. **Search Issues**: Look for similar issues on GitHub
+3. **Create Issue**: Report bugs with detailed information
+4. **Community Support**: Ask questions in discussions
+
+This usage guide provides comprehensive instructions for using the HCP Rating System effectively. For additional help, refer to the documentation or community resources. 
