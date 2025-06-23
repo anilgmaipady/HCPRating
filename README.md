@@ -160,6 +160,8 @@ RD-RANK/
 - **API Documentation**: Auto-generated OpenAPI documentation
 - **Data Validation**: Comprehensive input validation and error handling
 
+📖 **For training instructions, see [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md)**
+
 ### User Interface
 - **Interactive Dashboard**: Real-time scoring with visual feedback
 - **Data Visualization**: Charts and graphs for result analysis
