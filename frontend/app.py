@@ -339,7 +339,7 @@ def show_single_transcript_page():
             )
         
         if result:
-            display_scoring_results(result)
+            display_scoring_results(result, transcript)
 
 def show_batch_processing_page():
     """Batch processing page."""
@@ -467,7 +467,8 @@ def show_reports_page():
 
 def show_configuration_page():
     """Configuration page."""
-    st.header("⚙️ Configuration")
+    st.header("⚙️ System Configuration")
+    st.info("View the current system configuration loaded from `configs/config.yaml`")
     
     st.subheader("Current Configuration")
     
@@ -488,7 +489,7 @@ def show_configuration_page():
     model_config = config.get('model', {})
     st.json(model_config)
 
-def display_scoring_results(result):
+def display_scoring_results(result, transcript_text):
     """Display scoring results for a single transcript."""
     st.success("✅ Transcript scored successfully!")
     
@@ -560,6 +561,51 @@ def display_scoring_results(result):
                 file_name=f"hcp_score_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv"
             )
+
+    # --- Feedback Collection Section ---
+    st.subheader("📝 Provide Feedback")
+    with st.expander("Click here to correct this evaluation"):
+        with st.form("feedback_form"):
+            st.write("If you believe the scores or analysis are incorrect, please provide your corrections below. This feedback will be used to improve the model.")
+            
+            # Corrected scores
+            st.write("**Corrected Scores (1-5):**")
+            cols = st.columns(len(result['scores']))
+            corrected_scores = {}
+            for i, (dim, score) in enumerate(result['scores'].items()):
+                with cols[i]:
+                    corrected_scores[dim] = st.number_input(dim.title(), min_value=1, max_value=5, value=int(round(score)), step=1)
+
+            # Corrected text fields
+            corrected_reasoning = st.text_area("Corrected Reasoning", value=result.get('reasoning', ''))
+            corrected_strengths = st.text_area("Corrected Strengths (one per line)", value="\n".join(result.get('strengths', [])))
+            corrected_areas_for_improvement = st.text_area("Corrected Areas for Improvement (one per line)", value="\n".join(result.get('areas_for_improvement', [])))
+
+            feedback_submitted = st.form_submit_button("Submit Feedback")
+
+            if feedback_submitted:
+                feedback_data = {
+                    "transcript": transcript_text,
+                    "empathy": corrected_scores['empathy'],
+                    "clarity": corrected_scores['clarity'],
+                    "accuracy": corrected_scores['accuracy'],
+                    "professionalism": corrected_scores['professionalism'],
+                    "reasoning": corrected_reasoning,
+                    "strengths": [s.strip() for s in corrected_strengths.split('\n') if s.strip()],
+                    "areas_for_improvement": [a.strip() for a in corrected_areas_for_improvement.split('\n') if a.strip()],
+                    "feedback_timestamp": datetime.now().isoformat()
+                }
+
+                # Ensure feedback directory exists
+                feedback_dir = project_root / "feedback"
+                feedback_dir.mkdir(exist_ok=True)
+                feedback_file = feedback_dir / "collected_feedback.jsonl"
+
+                # Append feedback to the file
+                with open(feedback_file, 'a') as f:
+                    f.write(json.dumps(feedback_data) + '\n')
+                
+                st.success("🙏 Thank you! Your feedback has been recorded and will be used to improve the model.")
 
 def display_batch_results(results):
     """Display results for batch processing."""

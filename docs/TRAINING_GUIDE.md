@@ -391,6 +391,37 @@ python src/cli.py score "Your test transcript here"
 python src/deployment/start_server.py
 ```
 
+## 🔁 Retraining with Production Feedback
+
+A key feature of this system is the ability to continuously improve the model by collecting feedback on incorrect predictions.
+
+### 1. How Feedback Collection Works
+- After scoring a transcript in the web UI, a **"Provide Feedback"** section appears.
+- If a prediction is inaccurate, you can expand this section to open a correction form.
+- In the form, you can adjust the scores (1-5) and edit the text for reasoning, strengths, and areas for improvement.
+- Clicking **"Submit Feedback"** saves the original transcript along with your corrections.
+
+### 2. Where Feedback is Stored
+- All submitted feedback is stored in a new file: `feedback/collected_feedback.jsonl`.
+- This file is automatically created and appended to, using the exact same format as the training data, making it ready for retraining.
+
+### 3. How to Retrain with Feedback Data
+You can use the collected feedback to fine-tune your model further.
+
+```bash
+# Train a new model using ONLY the feedback data
+python train_model.py --data feedback/collected_feedback.jsonl --output models/retrained_with_feedback
+
+# Recommended: Merge feedback data with your original training data
+# (Manually or with a script) and then train on the combined dataset.
+# This helps the model learn from its mistakes without forgetting its original knowledge.
+# Example:
+# cat data/original_training_data.jsonl feedback/collected_feedback.jsonl > data/combined_training_data.jsonl
+# python train_model.py --data data/combined_training_data.jsonl --output models/retrained_combined
+```
+
+This feedback loop allows for continuous, targeted improvement of your model's accuracy and relevance.
+
 ## Conclusion
 
 This training guide provides everything you need to fine-tune the HCP Rating System for your specific use case. The LoRA approach makes training efficient and accessible, while maintaining the quality of the base model.

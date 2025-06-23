@@ -166,6 +166,7 @@ RD-RANK/
 - **Interactive Dashboard**: Real-time scoring with visual feedback
 - **Data Visualization**: Charts and graphs for result analysis
 - **Batch Upload**: CSV file processing with drag-and-drop support
+- **Feedback Loop**: Collect corrections on bad predictions to improve the model
 - **Responsive Design**: Mobile-friendly interface
 - **Real-time Updates**: Live API health monitoring
 
@@ -302,29 +303,4 @@ docker run -p 8000:8000 rd-rating-system
 8. Open a Pull Request
 
 ### Development Setup
-```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
-
-# Run code formatting
-black src/ tests/
-
-# Run linting
-flake8 src/ tests/
-
-# Run type checking
-mypy src/
 ```
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Mistral AI** for the Mistral-7B model
-- **Ollama** for easy local model deployment
-- **vLLM** for high-performance inference
-- **FastAPI** for the modern web framework
-- **Streamlit** for the interactive web interface
-- **Hugging Face** for the transformers library 
