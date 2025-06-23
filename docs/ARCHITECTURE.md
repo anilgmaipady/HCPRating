@@ -9,26 +9,26 @@ The HCP Rating System is designed as a modular, scalable platform for evaluating
 ```mermaid
 graph TD
     subgraph "User Interfaces"
-        UI[Frontend <br/>(Streamlit)]
-        CLI[CLI Interface <br/>(Typer)]
+        UI["Frontend <br>(Streamlit)"]
+        CLI["CLI Interface <br>(Typer)"]
     end
 
     subgraph "Application Core"
-        API[API Server <br/>(FastAPI)]
-        Scorer[Inference Engine <br/>(HCP Scorer)]
+        API["API Server <br>(FastAPI)"]
+        Scorer["Inference Engine <br>(HCP Scorer)"]
     end
 
     subgraph "Data & Models"
-        Models[Model Backends <br/>(Ollama, vLLM, Local)]
-        Training[Training Pipeline <br/>(fine_tune.py)]
-        FeedbackDB[(Feedback Store <br/>collected_feedback.jsonl)]
-        TrainingData[Training Data <br/>(.jsonl/.csv)]
+        Models["Model Backends <br>(Ollama, vLLM, Local)"]
+        Training["Training Pipeline <br>(fine_tune.py)"]
+        FeedbackDB[("Feedback Store <br>collected_feedback.jsonl")]
+        TrainingData["Training Data <br>(.jsonl/.csv)"]
     end
 
-    UI -- HTTP Requests --> API
-    CLI -- Function Calls --> Scorer
-    API -- Function Calls --> Scorer
-    Scorer -- Inference --> Models
+    UI -- "HTTP Requests" --> API
+    CLI -- "Function Calls" --> Scorer
+    API -- "Function Calls" --> Scorer
+    Scorer -- "Inference" --> Models
     
     UI -- "Save Correction" --> FeedbackDB
     FeedbackDB -- "Input for Retraining" --> Training
