@@ -222,10 +222,10 @@ User Input → Frontend → Backend Selection → Model → Scoring → Results 
      │           │              │              │        │         └─ Validation & Processing
      │           │              │              │        └─ Multi-dimensional Analysis
      │           │              │              │
-     │           │              │              └─ Ollama/vLLM/Local
-     │           │              └─ Auto-selection Logic
-     │           └─ Backend Detection
-     └─ Transcript + Metadata
+     │           │              │              │ Ollama/vLLM/Local
+     │           │              │              └─ Auto-selection Logic
+     │           │              └─ Backend Detection
+     │           └─ Transcript + Metadata
 ```
 
 ### **Batch Processing Flow**
@@ -248,208 +248,66 @@ CSV Upload → Validation → Chunking → Parallel Scoring → Aggregation → 
 Start → Check Ollama → Available? → Yes → Use Ollama
   │         │              │
   │         │              └─ No → Check vLLM → Available? → Yes → Use vLLM
-  │         │                                 │
-  │         │                                 └─ No → Check Local → Available? → Yes → Use Local
-  │         │                                                                 │
-  │         │                                                                 └─ No → Use OpenAI
-  │         └─ Error → Show Installation Guide
-  └─ Complete
 ```
 
-## ⚙️ Configuration Design
+## 🔁 Feedback Loop Design
 
-### **Configuration Structure** (`configs/config.yaml`)
+To enable continuous model improvement, a feedback loop is implemented to collect corrections on inaccurate predictions and use them for retraining.
 
-**Design Principles**:
-- **Hierarchical**: Logical grouping of related settings
-- **Environment-Aware**: Different settings for different environments
-- **Validation**: Built-in configuration validation
-- **Documentation**: Self-documenting configuration
+### 1. **Feedback Collection (Frontend)**
+-   **Component**: A `st.expander` containing a `st.form` is added to the `display_scoring_results` function in `frontend/app.py`.
+-   **Trigger**: This form is displayed on the results page after every single transcript evaluation.
+-   **Functionality**:
+    *   It is pre-populated with the model's original predictions.
+    *   Users can override the 1-5 scores for each dimension using `st.number_input`.
+    *   Users can edit the `reasoning`, `strengths`, and `areas_for_improvement` in `st.text_area` fields.
 
-**Key Sections**:
-```yaml
-# Model Configuration
-model:
-  name: "models/mistral-7b-instruct"
-  max_length: 4096
-  temperature: 0.1
+### 2. **Data Storage**
+-   **File**: Corrected feedback is appended to `feedback/collected_feedback.jsonl`.
+-   **Format**: The data is stored in JSONL format, which is identical to the training data format. This makes it seamless to use for retraining.
+-   **Structure**: Each JSON object includes the original `transcript` and all the corrected fields provided by the user.
+-   **Directory Creation**: The `feedback/` directory is created automatically if it does not exist.
 
-# Ollama Configuration (Primary Backend)
-ollama:
-  base_url: "http://localhost:11434"
-  model_name: "mistral"
-  temperature: 0.1
-  max_tokens: 2048
-  timeout: 120
+### 3. **Retraining Workflow**
+-   **Data Source**: The `train_model.py` script can be pointed directly to the `feedback/collected_feedback.jsonl` file using the `--data` argument.
+-   **Process**:
+    1.  Collect a sufficient amount of feedback data.
+    2.  Run the training script, using the feedback file as the data source.
+    3.  **Recommendation**: For optimal results, it's best to combine the feedback data with the original training dataset. This prevents the model from "catastrophic forgetting" and ensures it improves on its mistakes while retaining its general knowledge.
+        ```bash
+        # Example of combining datasets
+        cat data/original_training_data.jsonl feedback/collected_feedback.jsonl > data/combined_training_data.jsonl
+        
+        # Retrain on the combined dataset
+        python train_model.py --data data/combined_training_data.jsonl
+        ```
 
-# vLLM Configuration (Secondary Backend)
-server:
-  host: "0.0.0.0"
-  port: 8000
-  tensor_parallel_size: 1
-  max_model_len: 8192
-  gpu_memory_utilization: 0.9
+This design creates a virtuous cycle where the model gets progressively better as more feedback is collected from real-world use.
 
-# Scoring Criteria
-scoring:
-  dimensions:
-    empathy:
-      weight: 0.25
-      description: "Ability to understand and respond to patient emotions"
-      criteria:
-        - "Shows genuine concern for patient's feelings"
-        - "Uses empathetic language and tone"
-        - "Acknowledges patient's emotional state"
-    # ... other dimensions
+## 🧪 Testing and Quality Assurance
 
-# API Configuration
-api:
-  title: "RD Rating API"
-  description: "API for rating Registered Dietitians"
-  version: "1.0.0"
-  docs_url: "/docs"
-  redoc_url: "/redoc"
-```
+### **Test Coverage and Automation**
+- **Unit Tests**: Pytest for individual component testing
+- **Integration Tests**: End-to-end workflow testing
+- **API Tests**: HTTPX for REST API endpoint testing
+- **Performance Tests**: Locust for load and stress testing
 
-## 🔒 Security Design
+### **Code Quality and Standards**
+- **Code Formatting**: Black for consistent formatting
+- **Linting**: Ruff for high-performance code quality checks
+- **Type Checking**: MyPy for static type safety
+- **Pre-commit Hooks**: Automated checks before every commit
+
+## 🔒 Security and Reliability
+
+### **API Security**
+- **CORS**: Configured for web access
+- **Input Validation**: Pydantic models for request validation
+- **Sanitization**: Standard libraries for input cleaning
+- **Secrets Management**: `python-dotenv` for environment secrets
 
 ### **Data Privacy**
-
-**Design Principles**:
-- **Local Processing**: All data processed locally by default
-- **No External Dependencies**: Optional external API usage
-- **Configurable Privacy**: User-controlled data handling
-
-**Implementation**:
-```python
-# Local processing with Ollama
-def _get_ollama_response(self, prompt: str) -> str:
-    """Get response from local Ollama instance"""
-    # No data leaves the local machine
-    
-# Optional external processing
-def _get_openai_response(self, prompt: str) -> str:
-    """Get response from OpenAI API (optional)"""
-    # Only used if explicitly configured
-```
-
-### **Input Validation**
-
-**Design Features**:
-- **Comprehensive Validation**: All inputs validated before processing
-- **Sanitization**: Input sanitization to prevent injection attacks
-- **Error Handling**: Graceful error handling with user-friendly messages
-
-**Implementation**:
-```python
-class TranscriptRequest(BaseModel):
-    transcript: str = Field(..., min_length=10, max_length=10000)
-    rd_name: Optional[str] = Field(None, max_length=100)
-    session_date: Optional[str] = Field(None, regex=r'^\d{4}-\d{2}-\d{2}$')
-```
-
-## 🧪 Testing Design
-
-### **Test Strategy**
-
-**Design Principles**:
-- **Comprehensive Coverage**: All components tested
-- **Integration Testing**: End-to-end workflow testing
-- **Backend Testing**: Multiple backend testing
-- **Error Testing**: Error condition testing
-
-**Test Structure**:
-```
-tests/
-├── test_hcp_scorer.py      # Core scoring logic tests
-├── test_ollama.py         # Ollama integration tests
-├── test_api.py           # API endpoint tests
-└── test_integration.py   # End-to-end tests
-```
-
-### **Test Scripts**
-
-**Ollama Test** (`test_ollama.py`):
-```python
-def test_ollama_integration():
-    """Test complete Ollama integration"""
-    # 1. Check Ollama availability
-    # 2. Test model loading
-    # 3. Test scoring functionality
-    # 4. Validate results
-```
-
-**Quick Test** (`test_quick_scoring.py`):
-```python
-def test_basic_functionality():
-    """Test basic system functionality"""
-    # 1. Test backend detection
-    # 2. Test scoring
-    # 3. Test result validation
-```
-
-## 📈 Performance Design
-
-### **Performance Optimization**
-
-**Design Strategies**:
-- **Backend Selection**: Optimal backend for use case
-- **Caching**: Result caching for repeated requests
-- **Batch Processing**: Efficient batch operations
-- **Memory Management**: Optimized memory usage
-
-**Performance Characteristics**:
-| Backend | Startup Time | Memory Usage | Throughput | Setup Complexity |
-|---------|-------------|--------------|------------|------------------|
-| **Ollama** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| vLLM | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ |
-| Local | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
-| OpenAI | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-
-### **Scalability Design**
-
-**Horizontal Scaling**:
-- **API Server**: Multiple API server instances
-- **Load Balancing**: Nginx load balancer
-- **Database**: Optional database integration
-- **Caching**: Redis caching layer
-
-**Vertical Scaling**:
-- **GPU Acceleration**: vLLM GPU optimization
-- **Memory Optimization**: Efficient memory usage
-- **CPU Optimization**: Multi-threading support
-
-## 🔮 Future Design Considerations
-
-### **Planned Enhancements**
-
-**Multi-language Support**:
-- **Internationalization**: Multi-language transcript support
-- **Language Detection**: Automatic language detection
-- **Localized Models**: Language-specific models
-
-**Advanced Analytics**:
-- **Trend Analysis**: Performance trend tracking
-- **Comparative Analysis**: RD comparison features
-- **Predictive Analytics**: Performance prediction
-
-**Model Management**:
-- **Model Versioning**: Version control for models
-- **A/B Testing**: Model comparison framework
-- **Automated Training**: Continuous model improvement
-
-### **Architecture Evolution**
-
-**Microservices Migration**:
-- **Service Decomposition**: Component separation
-- **API Gateway**: Centralized API management
-- **Service Discovery**: Dynamic service discovery
-- **Container Orchestration**: Kubernetes deployment
-
-**Data Pipeline**:
-- **Stream Processing**: Real-time data processing
-- **Data Lake**: Centralized data storage
-- **ETL Processes**: Automated data transformation
-- **Analytics Platform**: Advanced analytics integration
-
-This technical design provides a robust foundation for the RD Rating System while maintaining flexibility for future enhancements and scalability requirements. 
+- **Local Processing**: Default operation is on-premise
+- **No External Data Transfer**: No data sent to external services (unless OpenAI is explicitly configured)
+- **Configurable Data Retention**: Policies can be set for data storage
+- **Export Controls**: User-managed data exports 

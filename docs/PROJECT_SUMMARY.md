@@ -22,6 +22,15 @@ The HCP Rating System is a comprehensive AI-powered platform designed to evaluat
 - **Export Capabilities**: Multiple format support (CSV, JSON, Excel, PDF)
 - **Configuration Management**: Flexible system configuration
 - **Health Monitoring**: Real-time system status and performance tracking
+- **Continuous Improvement**: A feedback loop to collect corrections and retrain the model
+
+### **User Interface**
+- **Interactive Dashboard**: Real-time scoring with visual feedback
+- **Data Visualization**: Charts and graphs for result analysis
+- **Batch Upload**: CSV file processing with drag-and-drop support
+- **Feedback Collection**: UI to correct bad predictions for retraining
+- **Responsive Design**: Mobile-friendly interface
+- **Real-time Updates**: Live API health monitoring
 
 ## 🏗️ Architecture Highlights
 
@@ -285,4 +294,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Discussions**: Community discussions and Q&A
 - **Examples**: Sample data and usage examples
 
-The HCP Rating System represents a significant advancement in healthcare quality assessment, providing objective, consistent, and actionable feedback for Healthcare Providers while maintaining the flexibility and scalability needed for real-world deployment. 
+The HCP Rating System represents a significant advancement in healthcare quality assessment, providing objective, consistent, and actionable feedback for Healthcare Providers while maintaining the flexibility and scalability needed for real-world deployment.
+
+## 🔄 Data Flow
+
+### Single Transcript Processing
+```
+User Input → Frontend → API → RD Scorer → vLLM → Mistral-7B → Response Processing → Results Display
+```
+
+### Batch Processing
+```
+CSV Upload → DataFrame Processing → Batch API → Parallel Scoring → Aggregated Results → Export
+```
+
+### Feedback & Retraining Loop
+```
+User Correction (UI) → Feedback Store (JSONL) → Training Pipeline → Fine-tuned Model
+``` 

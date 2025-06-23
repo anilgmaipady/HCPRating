@@ -108,6 +108,7 @@ The system evaluates RDs across four key dimensions:
 
 ### Advanced Features
 - **Model Fine-tuning**: Domain-specific training with LoRA
+- **Continuous Improvement**: A feedback loop to collect corrections and retrain the model
 - **Fallback Mechanisms**: OpenAI API backup for reliability
 - **Health Monitoring**: Real-time system status checks
 - **API Documentation**: Auto-generated OpenAPI documentation
@@ -117,6 +118,7 @@ The system evaluates RDs across four key dimensions:
 - **Interactive Dashboard**: Real-time scoring with visual feedback
 - **Data Visualization**: Charts and graphs for result analysis
 - **Batch Upload**: CSV file processing with drag-and-drop support
+- **Feedback Collection**: UI to correct bad predictions for retraining
 - **Responsive Design**: Mobile-friendly interface
 - **Real-time Updates**: Live API health monitoring
 
@@ -130,6 +132,11 @@ User Input → Frontend → API → RD Scorer → vLLM → Mistral-7B → Respon
 ### Batch Processing
 ```
 CSV Upload → DataFrame Processing → Batch API → Parallel Scoring → Aggregated Results → Export
+```
+
+### Feedback & Retraining Loop
+```
+User Correction (UI) → Feedback Store (JSONL) → Training Pipeline → Fine-tuned Model
 ```
 
 ## 📈 Performance Characteristics

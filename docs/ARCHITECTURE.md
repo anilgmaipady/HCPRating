@@ -6,18 +6,34 @@ The HCP Rating System is designed as a modular, scalable platform for evaluating
 
 ## System Architecture
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   API Server    │    │   Model Backend │
-│   (Streamlit)   │◄──►│   (FastAPI)     │◄──►│   (Ollama/vLLM) │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   CLI Interface │    │   Data Utils    │    │   Local Models  │
-│   (Command Line)│    │   (Processing)  │    │   (HuggingFace) │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+```mermaid
+graph TD
+    subgraph "User Interfaces"
+        UI[Frontend <br/>(Streamlit)]
+        CLI[CLI Interface <br/>(Typer)]
+    end
+
+    subgraph "Application Core"
+        API[API Server <br/>(FastAPI)]
+        Scorer[Inference Engine <br/>(HCP Scorer)]
+    end
+
+    subgraph "Data & Models"
+        Models[Model Backends <br/>(Ollama, vLLM, Local)]
+        Training[Training Pipeline <br/>(fine_tune.py)]
+        FeedbackDB[(Feedback Store <br/>collected_feedback.jsonl)]
+        TrainingData[Training Data <br/>(.jsonl/.csv)]
+    end
+
+    UI -- HTTP Requests --> API
+    CLI -- Function Calls --> Scorer
+    API -- Function Calls --> Scorer
+    Scorer -- Inference --> Models
+    
+    UI -- "Save Correction" --> FeedbackDB
+    FeedbackDB -- "Input for Retraining" --> Training
+    TrainingData -- "Input for Training" --> Training
+    Training -- "Creates/Updates" --> Models
 ```
 
 ## Core Components
@@ -30,6 +46,7 @@ The HCP Rating System is designed as a modular, scalable platform for evaluating
   - Batch processing
   - CSV upload and processing
   - Real-time visualizations
+  - **Feedback collection for model improvement**
   - Export functionality
 
 ### 2. API Layer
@@ -66,6 +83,11 @@ User Input → Frontend/API → HCP Scorer → Model Backend → Scoring Result 
 ### Batch Processing
 ```
 CSV/JSON Input → Data Processor → HCP Scorer → Model Backend → Results → Report Generation
+```
+
+### Feedback & Retraining Loop
+```
+User Correction (UI) → Feedback Store (JSONL) → Training Pipeline → Fine-tuned Model
 ```
 
 ## Module Structure
